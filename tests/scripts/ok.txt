@@ -1,0 +1,7 @@
+conf-dump
+ls -l "my dir"
+cd /home
+cd
+cd lkjhgfd
+cd lkjhgf kjhgf
+ls cd cdccdcdcdcdcdc

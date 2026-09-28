@@ -1,0 +1,7 @@
+ls
+foo
+cd /never
+cd lkjhgfd
+cd lkjhgf kjhgf
+ls cd cdccdcdcdcdcdc
+dfgfgg
