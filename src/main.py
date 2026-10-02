@@ -6,6 +6,8 @@ from pathlib import Path
 import shlex
 import argparse
 import csv
+import json
+
 
 VFS_NAME = "MyVFS"
 WINDOW_SIZE = "1280x720"
@@ -21,28 +23,27 @@ STATUS_ERROR = "error"
 STATUS_EXIT = "exit"
 
 
-def cmd_ls(args, config, output):
-    """Заглушка ls: выводит аргументы."""
-    output(f"ls: аргументы = {args}")
-    return STATUS_OK
+def build_window(root):
+    """Создаёт поле вывода и строку ввода.
 
+    Args:
+        root (tk.Tk): Корневое окно.
 
-def cmd_cd(args, config, output):
-    """Заглушка cd: выводит аргументы."""
-    output(f"cd: аргументы = {args}")
-    return STATUS_OK
+    Returns:
+        tuple[scrolledtext.ScrolledText, tk.Entry]: Вывод и ввод.
+    """
+    out = scrolledtext.ScrolledText(
+        root, bg="black", fg="white", font=FONT, state=tk.DISABLED
+    )
+    out.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+    frame = tk.Frame(root)
+    frame.pack(fill=tk.X, padx=5, pady=(0, 5))
+    tk.Label(frame, text=PROMPT, font=FONT).pack(side=tk.LEFT)
+    entry = tk.Entry(frame, font=FONT)
+    entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
+    entry.focus_set()
+    return out, entry
 
-
-def cmd_conf_dump(args, config, output):
-    """Выводит параметры эмулятора в формате ключ=значение."""
-    for line in format_config(config):
-        output(line)
-    return STATUS_OK
-
-
-def cmd_exit(args, config, output):
-    """Сообщает, что нужно завершить работу эмулятора."""
-    return STATUS_EXIT
 
 def parse_args(argv=None):
     """Разбирает параметры командной строки.
@@ -109,6 +110,7 @@ def write_log(log_file, command, args, status, output):
     except OSError as err:
         output(f"предупреждение: не удалось записать лог: {err}")
 
+
 def print_line(out, text=""):
     """Добавляет строку в поле вывода и сразу обновляет окно.
 
@@ -121,7 +123,6 @@ def print_line(out, text=""):
     out.see(tk.END)
     out.config(state=tk.DISABLED)
     out.update_idletasks()
-
 
 
 def parse_line(line):
@@ -141,6 +142,31 @@ def parse_line(line):
     except ValueError as err:
         raise ValueError(f"ошибка разбора: {err}") from err
     return parts[0], parts[1:]
+
+
+def cmd_ls(args, config, output):
+    """Заглушка ls: выводит аргументы."""
+    output(f"ls: аргументы = {args}")
+    return STATUS_OK
+
+
+def cmd_cd(args, config, output):
+    """Заглушка cd: выводит аргументы."""
+    output(f"cd: аргументы = {args}")
+    return STATUS_OK
+
+
+def cmd_conf_dump(args, config, output):
+    """Выводит параметры эмулятора в формате ключ=значение."""
+    for line in format_config(config):
+        output(line)
+    return STATUS_OK
+
+
+def cmd_exit(args, config, output):
+    """Сообщает, что нужно завершить работу эмулятора."""
+    return STATUS_EXIT
+
 
 COMMANDS = {
     "ls": cmd_ls,
@@ -178,6 +204,7 @@ def execute(line, config, output):
     write_log(config["log_file"], command, args, logged, output)
     return status
 
+
 def handle_enter(root, entry, config, output):
     """Выполняет команду, введённую пользователем по нажатию Enter.
 
@@ -193,27 +220,6 @@ def handle_enter(root, entry, config, output):
     if execute(line, config, output) == STATUS_EXIT:
         root.destroy()
 
-
-def build_window(root):
-    """Создаёт поле вывода и строку ввода.
-
-    Args:
-        root (tk.Tk): Корневое окно.
-
-    Returns:
-        tuple[scrolledtext.ScrolledText, tk.Entry]: Вывод и ввод.
-    """
-    out = scrolledtext.ScrolledText(
-        root, bg="black", fg="white", font=FONT, state=tk.DISABLED
-    )
-    out.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-    frame = tk.Frame(root)
-    frame.pack(fill=tk.X, padx=5, pady=(0, 5))
-    tk.Label(frame, text=PROMPT, font=FONT).pack(side=tk.LEFT)
-    entry = tk.Entry(frame, font=FONT)
-    entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
-    entry.focus_set()
-    return out, entry
 
 def read_script(path, output):
     """Читает строки скрипта.
@@ -260,6 +266,7 @@ def run_script(path, config, output):
             return status
     return STATUS_OK
 
+
 def start_script(root, config, output):
     """Запускает стартовый скрипт, по exit закрывает окно.
 
@@ -271,6 +278,32 @@ def start_script(root, config, output):
     if run_script(config["script"], config, output) == STATUS_EXIT:
         root.destroy()
 
+
+def load_vfs(path, output):
+    """Читает JSON-файл VFS в память.
+
+    Загружает VFS из JSON-файла в оперативную память.
+    Исходный файл только читается и не модифицируется.
+
+    Args:
+        path (str | None): Путь к JSON-файлу VFS. Если пусто/None —
+            VFS не загружается, возвращается None.
+        output (Callable[[str], None]): Функция вывода строки для
+            сообщений об ошибках.
+
+    Returns:
+        dict | None: Словарь VFS при успехе, иначе None.
+    """
+    if not path:
+        return None
+    try:
+        doc = json.loads(Path(path).read_text(encoding="utf-8"))
+        return {"name": doc.get("name", VFS_NAME),
+                "root": doc["root"], "cwd": []}
+    except (OSError, UnicodeDecodeError,
+            json.JSONDecodeError, KeyError) as err:
+        output(f"ошибка: не удалось загрузить VFS: {err}")
+        return None
 
 
 def main():

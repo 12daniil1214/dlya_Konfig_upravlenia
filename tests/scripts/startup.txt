@@ -1,0 +1,7 @@
+ls
+ls chchchcchchch
+ls chchch dtdtdtdt
+cd
+cd fofofo
+cd fofofo tututu
+conf-dump

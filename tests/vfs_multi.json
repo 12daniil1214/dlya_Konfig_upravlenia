@@ -1,0 +1,12 @@
+{
+  "name": "MyVFS",
+  "root": {
+    "type": "dir",
+    "children": {
+      "readme.txt":  { "type": "file", "encoding": "utf-8",  "data": "Read me first\n" },
+      "config.ini":  { "type": "file", "encoding": "utf-8",  "data": "[main]\nkey=value\n" },
+      "logo.bin":    { "type": "file", "encoding": "base64", "data": "iVBORw0KGgo=" },
+      "empty.txt":   { "type": "file", "encoding": "utf-8",  "data": "" }
+    }
+  }
+}

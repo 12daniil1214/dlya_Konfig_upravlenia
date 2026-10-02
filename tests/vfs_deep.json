@@ -1,0 +1,41 @@
+{
+  "name": "MyVFS",
+  "root": {
+    "type": "dir",
+    "children": {
+      "home": {
+        "type": "dir",
+        "children": {
+          "user": {
+            "type": "dir",
+            "children": {
+              "projects": {
+                "type": "dir",
+                "children": {
+                  "app": {
+                    "type": "dir",
+                    "children": {
+                      "main.py": { "type": "file", "encoding": "utf-8",
+                                   "data": "print('hi')\n" },
+                      "data.bin": { "type": "file", "encoding": "base64",
+                                    "data": "AAECAwQFBgc=" }
+                    }
+                  }
+                }
+              },
+              "notes.txt": { "type": "file", "encoding": "utf-8",
+                             "data": "level3\n" }
+            }
+          }
+        }
+      },
+      "etc": {
+        "type": "dir",
+        "children": {
+          "hosts": { "type": "file", "encoding": "utf-8",
+                     "data": "127.0.0.1 localhost\n" }
+        }
+      }
+    }
+  }
+}

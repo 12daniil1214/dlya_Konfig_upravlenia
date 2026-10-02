@@ -1,0 +1,13 @@
+{
+  "name": "MyVFS",
+  "root": {
+    "type": "dir",
+    "children": {
+      "hello.txt": {
+        "type": "file",
+        "encoding": "utf-8",
+        "data": "Hello, VFS!\n"
+      }
+    }
+  }
+}
