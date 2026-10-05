@@ -145,14 +145,70 @@ def parse_line(line):
 
 
 def cmd_ls(args, config, output):
-    """Заглушка ls: выводит аргументы."""
-    output(f"ls: аргументы = {args}")
+    """Выводит содержимое каталога (каталоги помечаются '/')."""
+    vfs = _need_vfs(config, output)
+    if vfs is None:
+        return STATUS_ERROR
+    if args:
+        target = args[0]
+        try:
+            node = vfs_node(vfs, target)
+        except ValueError as err:
+            output(f"ls: {err}")
+            return STATUS_ERROR
+    else:
+        # текущий каталог
+        node = vfs["root"]
+        for p in vfs["cwd"]:
+            node = node["children"][p]
+    if node.get("type") != "dir":
+        output(f"ls: не каталог")
+        return STATUS_ERROR
+    for name, child in sorted(node.get("children", {}).items()):
+        output(name + ("/" if child.get("type") == "dir" else ""))
     return STATUS_OK
 
 
 def cmd_cd(args, config, output):
-    """Заглушка cd: выводит аргументы."""
-    output(f"cd: аргументы = {args}")
+    """Меняет текущий каталог. Поддерживает '.', '..' и абсолютные пути."""
+    vfs = _need_vfs(config, output)
+    if vfs is None:
+        return STATUS_ERROR
+    if len(args) != 1:
+        output("cd: нужен один аргумент")
+        return STATUS_ERROR
+    target = args[0]
+    try:
+        node = vfs_node(vfs, target)
+    except ValueError as err:
+        output(f"cd: {err}")
+        return STATUS_ERROR
+    if node.get("type") != "dir":
+        output(f"cd: {target}: не каталог")
+        return STATUS_ERROR
+    new_cwd = [] if target.startswith("/") else list(vfs["cwd"])
+    for p in [x for x in target.split("/") if x]:
+        if p == ".":
+            continue
+        if p == "..":
+            if new_cwd:
+                new_cwd.pop()
+        else:
+            new_cwd.append(p)
+    vfs["cwd"] = new_cwd
+    return STATUS_OK
+
+
+def cmd_who(args, config, output):
+    """Показывает пользователей, работающих в системе."""
+    output("user     salfetka")
+    output("user     polzovatel123")
+    return STATUS_OK
+
+
+def cmd_whoami(args, config, output):
+    """Печатает имя текущего пользователя."""
+    output("user salfetka")
     return STATUS_OK
 
 
@@ -171,6 +227,8 @@ def cmd_exit(args, config, output):
 COMMANDS = {
     "ls": cmd_ls,
     "cd": cmd_cd,
+    "who": cmd_who,
+    "whoami": cmd_whoami,
     "conf-dump": cmd_conf_dump,
     "exit": cmd_exit,
 }
@@ -294,16 +352,56 @@ def load_vfs(path, output):
     Returns:
         dict | None: Словарь VFS при успехе, иначе None.
     """
+
+    """Читает JSON-файл VFS в память. Возвращает словарь или None."""
     if not path:
         return None
     try:
-        doc = json.loads(Path(path).read_text(encoding="utf-8"))
+        doc = json.loads(Path(path).read_text(encoding="utf-8-sig"))
         return {"name": doc.get("name", VFS_NAME),
                 "root": doc["root"], "cwd": []}
     except (OSError, UnicodeDecodeError,
             json.JSONDecodeError, KeyError) as err:
         output(f"ошибка: не удалось загрузить VFS: {err}")
         return None
+
+def vfs_node(vfs, arg):
+    """Узел по пути относительно cwd. Кидает ValueError."""
+    # Определяем стартовый узел и базовый cwd
+    if arg.startswith("/"):
+        node = vfs["root"]
+        cwd = []
+        parts = [x for x in arg.split("/") if x]
+    else:
+        node = vfs["root"]
+        for p in vfs["cwd"]:
+            node = node["children"][p]
+        cwd = list(vfs["cwd"])
+        parts = [x for x in arg.split("/") if x]
+
+    for p in parts:
+        if p == ".":
+            continue
+        if p == "..":
+            if cwd:
+                cwd.pop()
+            # Пересчитываем node от корня по cwd
+            node = vfs["root"]
+            for q in cwd:
+                node = node["children"][q]
+            continue
+        if node.get("type") != "dir" or p not in node.get("children", {}):
+            raise ValueError(f"нет такого пути: {arg}")
+        node = node["children"][p]
+        cwd.append(p)
+    return node
+
+
+def _need_vfs(config, output):
+    vfs = config.get("vfs")
+    if vfs is None:
+        output("ошибка: VFS не загружена (--vfs-path)")
+    return vfs
 
 
 def main():
@@ -314,6 +412,7 @@ def main():
     root.geometry(WINDOW_SIZE)
     out, entry = build_window(root)
     output = partial(print_line, out)
+    config["vfs"] = load_vfs(config["vfs_path"], output)
     output(f"{VFS_NAME}: эмулятор оболочки. Введите команду.")
     output("[debug] Параметры запуска:")
     for line in format_config(config):

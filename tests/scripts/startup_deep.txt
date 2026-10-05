@@ -1,0 +1,14 @@
+who
+whoami
+ls
+cd home
+ls
+cd user
+ls
+cd projects
+ls
+cd ..
+ls
+conf-dump
+who
+whoami
