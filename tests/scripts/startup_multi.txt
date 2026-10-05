@@ -1,0 +1,6 @@
+who
+whoami
+ls
+conf-dump
+who
+whoami
