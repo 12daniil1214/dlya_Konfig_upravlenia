@@ -1,7 +1,10 @@
-conf-dump
-ls -l "my dir"
-cd /home
-cd
-cd lkjhgfd
-cd lkjhgf kjhgf
-ls cd cdccdcdcdcdcdc
+ls
+cd /home/user/projects/app
+ls
+rm /home/user/projects/app/data.bin
+cd /home/user/projects/app
+ls
+cd ..
+ls
+rm -r app
+ls

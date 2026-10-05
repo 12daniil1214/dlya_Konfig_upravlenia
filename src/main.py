@@ -21,6 +21,8 @@ SCRIPT_DELAY_MS = 100
 STATUS_OK = "ok"
 STATUS_ERROR = "error"
 STATUS_EXIT = "exit"
+RM_RECURSIVE = "-r"
+RM_FORBIDDEN = (".", "..", "/")
 
 
 def build_window(root):
@@ -199,6 +201,73 @@ def cmd_cd(args, config, output):
     return STATUS_OK
 
 
+def cmd_rm(args, config, output):
+    """Удаляет файлы и, с ключом -r, каталоги из VFS в памяти.
+
+    Args:
+        args (list[str]): Пути и, возможно, ключ -r.
+        config (dict): Параметры эмулятора.
+        output (Callable[[str], None]): Функция вывода строки.
+
+    Returns:
+        str: STATUS_OK или STATUS_ERROR.
+    """
+    vfs = _need_vfs(config, output)
+    if vfs is None:
+        return STATUS_ERROR
+    recursive = RM_RECURSIVE in args
+    targets = [a for a in args if a != RM_RECURSIVE]
+    if not targets:
+        output("rm: нужен аргумент")
+        return STATUS_ERROR
+    status = STATUS_OK
+    for target in targets:
+        if not _rm_path(vfs, target, recursive, output):
+            status = STATUS_ERROR
+    return status
+
+
+def _rm_path(vfs, target, recursive, output):
+    """Удаляет один путь. Возвращает True при успехе.
+
+    Args:
+        vfs (dict): Виртуальная файловая система.
+        target (str): Путь к удаляемому узлу.
+        recursive (bool): Разрешить удаление каталога.
+        output (Callable[[str], None]): Функция вывода строки.
+
+    Returns:
+        bool: True, если узел удалён, иначе False.
+    """
+    if target in RM_FORBIDDEN or target.endswith("/"):
+        output(f"rm: {target}: нельзя удалить")
+        return False
+    parts = [p for p in target.split("/") if p]
+    name = parts[-1]
+    parent_path = "/".join(parts[:-1]) if len(parts) > 1 else "."
+    if target.startswith("/"):
+        parent_path = "/" + parent_path if parent_path != "." else "/"
+    try:
+        if parent_path in (".", "/"):
+            parent = vfs["root"]
+            for p in ([] if parent_path == "/" else vfs["cwd"]):
+                parent = parent["children"][p]
+        else:
+            parent = vfs_node(vfs, parent_path)
+    except ValueError as err:
+        output(f"rm: {err}")
+        return False
+    if name not in parent.get("children", {}):
+        output(f"rm: {target}: нет такого файла")
+        return False
+    node = parent["children"][name]
+    if node.get("type") == "dir" and not recursive:
+        output(f"rm: {target}: это каталог (используйте -r)")
+        return False
+    del parent["children"][name]
+    return True
+
+
 def cmd_who(args, config, output):
     """Показывает пользователей, работающих в системе."""
     output("user     salfetka")
@@ -227,6 +296,7 @@ def cmd_exit(args, config, output):
 COMMANDS = {
     "ls": cmd_ls,
     "cd": cmd_cd,
+    "rm": cmd_rm,
     "who": cmd_who,
     "whoami": cmd_whoami,
     "conf-dump": cmd_conf_dump,

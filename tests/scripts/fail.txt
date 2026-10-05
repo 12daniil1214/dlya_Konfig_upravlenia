@@ -1,7 +1,10 @@
 ls
-foo
-cd /never
-cd lkjhgfd
-cd lkjhgf kjhgf
-ls cd cdccdcdcdcdcdc
-dfgfgg
+cd /home/user/projects/app
+ls
+rm /home/user/projects/app/data.bin
+cd /home/user/projects/app
+ls
+rm hello.py
+ls
+cd ..
+exit
